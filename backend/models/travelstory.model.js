@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { schema } = require("./user.model");
+// const { User } = require("./user.model");
 const travelstorySchema=new mongoose.Schema({
   title:{type:String, required:true},
   story:{type:String, required:true},

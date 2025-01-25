@@ -42,9 +42,9 @@ app.post("/create-account", async (req, res) => {
   await user.save();
 
   const accessToken = jwt.sign(
-    { userId: user._id },
+    { userid: user._id, iat:Math.floor(Date.now()/1000) },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: '72h' }
+    { expiresIn: '24d' }
   );
 
   return res.status(201).json({
@@ -74,10 +74,10 @@ app.post("/login", async (req, res) => {
   }
 
   const accessToken=jwt.sign(
-    {userId:user._id},
+    {userid:user._id},
     process.env.ACCESS_TOKEN_SECRET,
     {
-      expiresIn:"72",
+      expiresIn:"24d",
     }
   );
 
@@ -91,43 +91,18 @@ app.post("/login", async (req, res) => {
 
 // get user 
 app.get("/get-user", authenticatetoken, async(req, res)=>{
-  const {userid}=req.user
+  const {userId}=req.user
 
-  const isuser=await User.findOne({_id: userid});
+  const founduser=await User.findOne({_id: userId});
 
-  if(!isuser){
+  if(!founduser){
     return res.sendStatus(401);
   }
-
+  // console.log(process.env.ACCESS_TOKEN_SECRET)
   return res.json({
-    user:isuser,
-    message:""
+    user:founduser,
+    message:"welcome",
   })
-})
-
-app.post("/add-travel-story", authenticatetoken, async(req, res)=>{
-  const {title, story, visitedlocation, imageurl, visiteddate} = req.body;
-
-  // validate user fields
-  if(!title || !story || !visiteddate || !visitedlocation || !imageurl){
-    return res.status(400).json({error:true, message:"All fields are required"});
-  }
-
-  // convert visited date from milliseconds to date object
-  try{
-    const  parsedvisiteddate=new TravelStory({
-      title,
-      story,
-      visitedlocation,
-      userid,
-      imageurl,
-      visiteddate:parsedvisiteddate,
-    });
-    await travelstoryModel.save();
-   res.status(201).json({story: TravelStory, message:"Added successfully"});
-  }catch(err){
-    res.status(400).json({err:true, message:err.message});
-  }
 })
 
 app.get("/get-all-stories", authenticatetoken, async(req, res)=>{
@@ -179,7 +154,74 @@ app.delete("/delete-image", async(req,res)=>{
   }catch(err){
     res.status(500).json({error:true, message:err.message});
   } 
- })
+})
+
+app.post("/add-travel-story", authenticatetoken, async(req, res)=>{
+  const {title, story, visitedlocation, imageurl, visiteddate} = req.body;
+  const {userid}=req.user.userId;
+
+  // validate user fields
+  if(!title || !story || !visiteddate || !visitedlocation || !imageurl){
+    return res.status(400).json({error:true, message:"All fields are required"});
+  }
+  const parsedvisiteddate=new Date(parseInt(visiteddate));
+  // convert visited date from milliseconds to date object
+  try{
+    const travelstory=new TravelStory({
+      title,
+      story,
+      visitedlocation,
+      userid, 
+      imageurl,
+      visiteddate:parsedvisiteddate,
+    });
+    await travelstory.save();
+   res.status(201).json({story: TravelStory, message:"Added successfully"});
+  }catch(err){
+    res.status(400).json({err:true, message:err.message});
+  }
+})
+
+// edit travel story
+app.post("/edit-story/:id", authenticatetoken, async(req, res)=>{
+  const {id} =req.params;
+  const {title, story, visitedlocation, imageurl, visiteddate} = req.body;
+  const {userid}=req.user;
+
+  // validate required fields
+  if((!title || !story || !visitedlocation ||!imageurl || !visiteddate)){
+    return res.status(400).json({error:true, message:"All fields are required"});
+  }
+
+  const parsedvisiteddate=new Date(parseInt(visiteddate));
+
+  try{
+    // find the travel story by ID  nd ensure it belongs to the authenticated user
+    const travelstory = await TravelStory.findOne({_id: id, userid:userid});
+
+    if(!travelstory){
+      return res.status(404).json({error:true, message:"Travel story not found!"});
+    }
+
+    const placeholderImgurl=`http://localhost:3000/assets/placeholder.png`;
+
+    travelstory.title=title;
+    travelstory.story-story;
+    travelstory.visitedlocation=visitedlocation;
+    travelstory.imageurl=imageurl || placeholderImgurl;
+    travelstory.visiteddate=parsedvisiteddate;
+
+    await travelstory.save();
+    res.status(200).json({story:travelstory, message:"Update successful"});
+  }catch(err){
+    res.status(500).json({error:true,message:err.message});
+  }
+})
+
+app.get('/test-auth', authenticatetoken, (req, res) => {
+  res.json({ message: "Token is valid", user: req.user });
+});
+
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/assets", express.static(path.join(__dirname, "assets")));
@@ -187,3 +229,4 @@ app.use("/assets", express.static(path.join(__dirname, "assets")));
 app.listen(3000, () => console.log('Server running on port 3000'));
 
 module.exports = app;
+
