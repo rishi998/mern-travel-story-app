@@ -54,9 +54,8 @@ app.post("/create-account", async (req, res) => {
     message: "Registration successful"
   });
 });
-
 // login
-app.post("/login", async (req, res) => {
+app.post("/login", async (req, res) => { 
   const {email, password}=req.body;
 
   if(!email || !password){
@@ -83,7 +82,7 @@ app.post("/login", async (req, res) => {
 
   return res.json({
     error:false,
-    message:"Login Successful",
+    message:"Login Successful",  
     user:{fullname:user.fullname, email:user.email},
     accessToken,
   })
@@ -91,14 +90,11 @@ app.post("/login", async (req, res) => {
 
 // get user 
 app.get("/get-user", authenticatetoken, async(req, res)=>{
-  const {userId}=req.user
-
-  const founduser=await User.findOne({_id: userId});
-
+  const {userid}=req.user;
+  const founduser=await User.findOne({_id: userid});
   if(!founduser){
-    return res.sendStatus(401);
+    return res.sendStatus(401); 
   }
-  // console.log(process.env.ACCESS_TOKEN_SECRET)
   return res.json({
     user:founduser,
     message:"welcome",
