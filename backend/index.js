@@ -102,6 +102,7 @@ app.get("/get-user", authenticatetoken, async(req, res)=>{
 })
 
 app.get("/get-all-stories", authenticatetoken, async(req, res)=>{
+   const {userid}=req.user;
   try{
     const travelstories=await TravelStory.find({userid:userid}).sort({isfavourite:-1});
     res.status(200).json({stories:travelstories});
@@ -134,7 +135,7 @@ app.delete("/delete-image", async(req,res)=>{
 
   try{
     // extract filename using image url
-    const filename=path.basename(imageurl);
+    const filename=path.basename( imageurl);
 
     // define the file path
     const filepath=path.join(__dirname,"uploads",filename);
@@ -154,7 +155,7 @@ app.delete("/delete-image", async(req,res)=>{
 
 app.post("/add-travel-story", authenticatetoken, async(req, res)=>{
   const {title, story, visitedlocation, imageurl, visiteddate} = req.body;
-  const {userid}=req.user.userId;
+  const {userid}=req.user;
 
   // validate user fields
   if(!title || !story || !visiteddate || !visitedlocation || !imageurl){
@@ -179,7 +180,7 @@ app.post("/add-travel-story", authenticatetoken, async(req, res)=>{
 })
 
 // edit travel story
-app.post("/edit-story/:id", authenticatetoken, async(req, res)=>{
+app.put("/edit-story/:id", authenticatetoken, async(req, res)=>{
   const {id} =req.params;
   const {title, story, visitedlocation, imageurl, visiteddate} = req.body;
   const {userid}=req.user;
@@ -188,11 +189,9 @@ app.post("/edit-story/:id", authenticatetoken, async(req, res)=>{
   if((!title || !story || !visitedlocation ||!imageurl || !visiteddate)){
     return res.status(400).json({error:true, message:"All fields are required"});
   }
-
   const parsedvisiteddate=new Date(parseInt(visiteddate));
-
   try{
-    // find the travel story by ID  nd ensure it belongs to the authenticated user
+    // find the travel story by ID  and ensure it belongs to the authenticated user
     const travelstory = await TravelStory.findOne({_id: id, userid:userid});
 
     if(!travelstory){
@@ -213,10 +212,114 @@ app.post("/edit-story/:id", authenticatetoken, async(req, res)=>{
     res.status(500).json({error:true,message:err.message});
   }
 })
+ 
+// delete a travel story
+app.delete("/delete-story/:id", authenticatetoken, async(req, res)=>{
+  const {id}=req.params;
+  const {userid}=req.user;
 
-app.get('/test-auth', authenticatetoken, (req, res) => {
-  res.json({ message: "Token is valid", user: req.user });
+  try{
+    // find the travel story by ID  and ensure it belongs to the authenticated user
+    const travelstory = await TravelStory.findOne({_id: id, userid:userid});
+
+    if(!travelstory){
+      return res.status(404).json({error:true, message:"Travel story not found!"});
+    }
+
+    // delete the travel story
+    await travelstory.deleteOne({_id:id, userid:userid});
+
+    // extract the filename from imageurl
+    const imageurl=travelstory.imageurl;
+    const filename=path.basename(imageurl);
+
+    // define the file path
+    const filepath=path.join(__dirname,'uploads',filename);
+
+    // dleete the image file from the uploads folder
+    fs.unlink(filepath, (err)=>{
+      if(err){
+        console.log("failed to delete the image file:",err);
+      }
+    });
+    res.status(200).json({message:"Travel story deleted successfully"});
+  }catch(err){
+    res.status(500).json({error:true, message:err.message});
+  }
+})
+
+// update isfavourite
+app.put("/update-is-favourite/:id",authenticatetoken, async(req,res)=>{
+  const {id}=req.params;
+  const {isfavourite}=req.body;
+  const {userid}=req.user;
+  try{
+    const travelstory=await TravelStory.findOne({_id:id, userid:userid});
+
+    if(!travelstory){
+      return res.status(404).json({error:true, message:"Travel stroy not found"});
+    }
+
+    travelstory.isfavourite=isfavourite;
+
+    await travelstory.save();
+    res.status(200).json({story:travelstory, message:"Updatd successfully"});
+  }catch(err){
+    res.status(400).json({error:true, message:err.message});
+  }
+})
+
+
+// search travel story
+app.get("/search", authenticatetoken, async (req, res) => {
+  const { query } = req.query;
+  const { userid } = req.user;
+
+  if (!query) {
+      return res.status(404).json({ error: true, message: "query is required" });
+  }
+
+  try {
+      const searchResults = await TravelStory.find({
+          userid: userid,
+          $or: [
+              { title: { $regex: query, $options: "i" } },
+              { story: { $regex: query, $options: "i" } },
+              { visitedlocation: { $regex: query, $options: "i" } },
+          ]
+      }).sort({ isFavourite: -1 });
+
+      res.status(200).json({ stories: searchResults });
+  } catch (error) {
+      res.status(500).json({ error: true, message: error.message });
+  }
 });
+
+app.get("/travel-stories/filter", authenticatetoken, async (req, res) => {
+  const { startDate, endDate } = req.query;
+  const { userId } = req.user;
+
+  try {
+      // Convert startDate and endDate from milliseconds to Date objects
+      const start = new Date(parseInt(startDate));
+      const end = new Date(parseInt(endDate));
+
+      // Find travel stories that belong to the authenticated user and fall within the specified date range
+      const filteredStories = await TravelStory.find({
+          userId: userId,
+          visiteddate: { $gte: start, $lte: end }
+      }).sort({ isFavourite: -1 });
+
+      res.status(200).json({ stories: filteredStories });
+  } catch (error) {
+      res.status(500).json({ error: true, message: error.message });
+  }
+});
+
+
+
+
+
 
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
