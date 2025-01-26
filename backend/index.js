@@ -316,12 +316,6 @@ app.get("/travel-stories/filter", authenticatetoken, async (req, res) => {
   }
 });
 
-
-
-
-
-
-
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/assets", express.static(path.join(__dirname, "assets")));
 
