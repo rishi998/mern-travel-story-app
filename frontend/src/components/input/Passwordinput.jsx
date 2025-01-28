@@ -13,7 +13,7 @@ const Passwordinput = ({value, onchange, placeholder}) => {
       <input value={value}
       onChange={onchange}
       placeholder={placeholder || "Password"}
-      type={isshowpassword? 'text' : "password"} 
+      type={isshowpassword? "text" : "password"} 
       className='w-full text-sm bg-transparent py-3 mr-3 rounded outline-none'
       />
 

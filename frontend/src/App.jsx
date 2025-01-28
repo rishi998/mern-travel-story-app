@@ -10,6 +10,7 @@ const App = () => {
     <div>
         <Router>
           <Routes>
+            <Route path="/" element={<Root/>}></Route>
             <Route path="/dashboard" element={<Home/>}></Route>
             <Route path="/login" element={<Login/>}></Route>
             <Route path="/signup" element={<Signup/>}></Route>
@@ -19,4 +20,15 @@ const App = () => {
   )
 }
 
+// DEFINE THE ROOT COMPONET TO HANDLE THE INITIAL REDIRECT
+const Root=()=>{
+  // check for token in localstorage
+  const isauthenticated=!!localStorage.getItem("token");
+
+  return isauthenticated?(
+    <Navigate to="/dashboard"/>
+  ):(
+    <Navigate to="/login"/>
+  )
+}
 export default App;
